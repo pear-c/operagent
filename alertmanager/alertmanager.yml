@@ -9,6 +9,6 @@ route:
 receivers:
   - name: webhook-sink
     webhook_configs:
-      # Phase 1에서 이 URL이 Python 에이전트로 교체된다.
-      - url: http://webhook-sink:9000/alert
+      # Phase 1: Python 진단 에이전트(operagent)로 라우팅.
+      - url: http://operagent:9000/webhook
         send_resolved: true

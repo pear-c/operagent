@@ -125,6 +125,46 @@ docker compose logs -f webhook-sink   # 또는: make logs-sink
 
 ---
 
-## Phase 1 예고
+## Phase 1 — 진단 에이전트 (read-only 코파일럿)
 
-`webhook-sink` → **Python 에이전트(FastAPI webhook 리시버)** 로 교체. alert을 받아 read-only 도구(PromQL·LogQL·배포이력 조회)로 맥락을 수집하고 "상황 / 원인 가설 A·B / 근거 / 다음 확인할 것" 구조화 리포트를 Slack에 올린다. **액션은 0개** (read-only 진단 코파일럿).
+`webhook-sink`(Go 로거) → **`agent/` (Python FastAPI)** 로 교체됨. Alertmanager가 `operagent:9000/webhook`으로 alert을 보내면:
+
+```
+alert → operagent: 즉시 200 ack → 비동기 진단
+  ├─ PromQL·LogQL(read-only)로 메트릭·로그 자동 수집
+  ├─ LLM 1회 종합(claude-opus-4-8) → "상황 / 원인 가설 A·B / 근거 / 다음 확인할 것" 4블록
+  └─ Slack 게시 (액션 0개)
+```
+
+### 실연동 설정 (LLM + Slack)
+
+`agent/.env.example`을 `.env`로 복사해 레포 루트에 두고 키를 채운다:
+
+```bash
+cp agent/.env.example .env   # 레포 루트에 .env (gitignore)
+# ANTHROPIC_API_KEY=sk-ant-...
+# SLACK_BOT_TOKEN=xoxb-...   (Bot을 채널에 /invite 해둘 것)
+# SLACK_CHANNEL_ID=C...
+# OPERAGENT_MODEL=claude-opus-4-8   (비용 절감 시 claude-sonnet-4-6)
+```
+
+`.env`가 없어도 동작한다 — **graceful degrade**: LLM·Slack을 건너뛰고 수집한 사실(메트릭·로그)만 operagent stdout에 출력. `docker compose logs -f operagent`로 확인.
+
+### 실행
+
+```bash
+docker compose up --build -d --remove-orphans   # operagent 빌드 + 옛 webhook-sink orphan 정리
+docker compose logs -f operagent                 # 진단 출력 확인
+make chaos-errors                                # → alert → 진단
+```
+
+> ⚠️ **alertmanager.yml(라우팅)을 바꾸면 `docker compose restart alertmanager` 필요** — alertmanager는 config를 자동 reload하지 않는다. 안 하면 옛 receiver로 보내 `no such host`.
+
+### 가드레일 (Phase 1)
+- read-only 도구만 (PromQL·LogQL). **write 액션 0개** — Phase 3 전까지.
+- LLM은 탐지하지 않음 (입력 = 이미 발생한 alert). 원인은 가설로.
+- LangGraph 없음 (결정론 수집 → LLM 1회). 시크릿은 `.env`만.
+
+## 다음 — Phase 2
+
+런북·과거 장애 회고·서비스 오너십 문서를 **BGE-M3 + ChromaDB**로 임베딩 → 일반론이 아닌 "이 시스템 특화" 진단. write 액션은 여전히 0.

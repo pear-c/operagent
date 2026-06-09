@@ -12,12 +12,22 @@ services:
       - "8080:8080"
     restart: unless-stopped
 
-  # ── 임시 alert 수신 로거 (Phase 1에서 Python 에이전트로 교체) ──
-  webhook-sink:
-    build: ./webhook-sink
-    container_name: webhook-sink
+  # ── 진단 에이전트 (Phase 1: webhook-sink 로거를 교체) ──
+  operagent:
+    build: ./agent
+    container_name: operagent
     ports:
       - "9000:9000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # 컨테이너 네트워크 서비스명 (.env 값보다 우선)
+      - PROMETHEUS_URL=http://prometheus:9090
+      - LOKI_URL=http://loki:3100
+    depends_on:
+      - prometheus
+      - loki
     restart: unless-stopped
 
   # ── 베이스라인 트래픽 (없으면 에러율 rule이 0/0 = NaN) ──
@@ -57,7 +67,7 @@ services:
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml
     depends_on:
-      - webhook-sink
+      - operagent
     restart: unless-stopped
 
   loki:

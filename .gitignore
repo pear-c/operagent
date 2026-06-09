@@ -5,5 +5,12 @@ data/
 demo-service/demo-service
 webhook-sink/webhook-sink
 
+# Python (agent/)
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
 # 시크릿 (Phase 1+)
 .env
