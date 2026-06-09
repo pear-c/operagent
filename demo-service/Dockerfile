@@ -1,6 +1,8 @@
 # ── build ──────────────────────────────────────────────
 FROM golang:1.23-alpine AS build
-ENV GOFLAGS=-mod=mod CGO_ENABLED=0
+# GOPROXY=direct: 이 네트워크는 proxy.golang.org(Google)가 간헐 타임아웃 →
+# github 등 소스 저장소에서 직접 받는다. GOSUMDB=off: sum.golang.org(동일 Google 인프라) 검증 생략.
+ENV GOFLAGS=-mod=mod CGO_ENABLED=0 GOPROXY=direct GOSUMDB=off
 WORKDIR /src
 COPY go.mod ./
 COPY *.go ./
