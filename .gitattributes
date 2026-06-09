@@ -1,0 +1,7 @@
+# Windows ↔ Linux 컨테이너 줄바꿈 통일 (CRLF가 들어가면 일부 설정 파서가 깨짐)
+* text=auto eol=lf
+*.go     text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.alloy  text eol=lf
+*.sh     text eol=lf

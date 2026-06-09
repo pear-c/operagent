@@ -1,0 +1,8 @@
+# 런타임/빌드 산출물
+data/
+*.log
+demo-service/demo-service
+webhook-sink/webhook-sink
+
+# 시크릿 (Phase 1+)
+.env

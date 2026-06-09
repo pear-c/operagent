@@ -1,0 +1,36 @@
+// demo-service 컨테이너의 stdout 로그를 수집해 Loki로 push한다.
+// promtail(2026-03-02 EOL) 대신 Grafana Alloy(OpenTelemetry Collector 기반) 사용.
+
+// 1) docker 데몬에서 컨테이너 목록을 발견
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// 2) demo-service 컨테이너만 남기고 service 라벨 부여
+discovery.relabel "demo_service" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/demo-service"
+    action        = "keep"
+  }
+  rule {
+    target_label = "service"
+    replacement  = "demo-service"
+  }
+}
+
+// 3) 해당 컨테이너 로그를 tail
+loki.source.docker "demo_service" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.demo_service.output
+  forward_to = [loki.write.default.receiver]
+}
+
+// 4) Loki로 push
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
